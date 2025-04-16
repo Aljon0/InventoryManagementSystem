@@ -1,49 +1,65 @@
-import React, { useState } from "react";
-import Sidebar from "./components/Sidebar";
-import Header from "./components/Header";
-import Dashboard from "./components/Dashboard";
-import Inventory from "./components/Inventory";
-import Categories from "./components/Categories";
-import Analytics from "./components/Analytics";
-import Settings from "./components/Settings";
-import AlertBanner from "./components/AlertBanner";
+import React, { lazy, Suspense } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+
+// Layout component
+import MainLayout from "./layouts/MainLayout";
+
+// Eagerly loaded components
+import Loader from "./components/Loader";
+
+// Lazily loaded components
+const Login = lazy(() => import("./components/Login"));
+const Dashboard = lazy(() => import("./components/Dashboard"));
+const Inventory = lazy(() => import("./components/Inventory"));
+const Categories = lazy(() => import("./components/Categories"));
+const Analytics = lazy(() => import("./components/Analytics"));
+const Settings = lazy(() => import("./components/Settings"));
+
+// Protected route component
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
 
 function App() {
-  const [activeView, setActiveView] = useState("dashboard");
-  const [showAlert, setShowAlert] = useState(true);
-
-  const renderView = () => {
-    switch (activeView) {
-      case "dashboard":
-        return <Dashboard />;
-      case "inventory":
-        return <Inventory />;
-      case "categories":
-        return <Categories />;
-      case "analytics":
-        return <Analytics />;
-      case "settings":
-        return <Settings />;
-      default:
-        return <Dashboard />;
-    }
-  };
-
   return (
-    <div className="flex h-screen bg-[#E5E7E6]">
-      <Sidebar activeView={activeView} setActiveView={setActiveView} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        {showAlert && (
-          <AlertBanner
-            message="Low stock alert: 5 products below threshold"
-            type="warning"
-            onClose={() => setShowAlert(false)}
-          />
-        )}
-        <main className="flex-1 overflow-y-auto p-4">{renderView()}</main>
-      </div>
-    </div>
+    <AuthProvider>
+      <Router>
+        <Suspense fallback={<Loader />}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <MainLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Dashboard />} />
+              <Route path="inventory" element={<Inventory />} />
+              <Route path="categories" element={<Categories />} />
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="settings" element={<Settings />} />
+            </Route>
+
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </Router>
+    </AuthProvider>
   );
 }
 
